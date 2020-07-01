@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const ChatId = require('../modals/ChatIds');
-
+const Message = require('../modals/Message');
 // @route Post api/chat
 //@desc get chat Ids
 //access public
@@ -36,11 +36,16 @@ router.post('/create', async (req, res) => {
       users: { name: user.firstName, userId: user._id },
     });
 
+    let newChatMessage = Message({
+      chatId,
+      messages: [],
+    });
     if (password) {
       const salt = await bcrypt.genSalt(10);
       newChatId.password = await bcrypt.hash(password, salt);
     }
     await newChatId.save();
+    await newChatMessage.save();
     res.json(newChatId);
   } catch (error) {
     console.log(error);
@@ -51,18 +56,14 @@ router.post('/create', async (req, res) => {
 // @desc Enter a new user to the chat
 // access private
 router.post('/enter', async (req, res) => {
-  const { chatId, enterPassword, user } = req.body;
+  const { chatId, password, user } = req.body;
   try {
     let userChatId = await ChatId.findOne({ chatId });
     if (!userChatId)
       return res.status(400).json({ errMsg: 'please enter correct chatid' });
-
     if (userChatId) {
       if (userChatId.password) {
-        const isPassword = await bcrypt.compare(
-          enterPassword,
-          userChatId.password
-        );
+        const isPassword = await bcrypt.compare(password, userChatId.password);
         if (!isPassword) {
           return res.status(400).json({ errMsg: 'Invalid chatId password' });
         }

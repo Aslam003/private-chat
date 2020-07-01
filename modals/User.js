@@ -22,8 +22,7 @@ const UserSchema = mongoose.Schema({
   },
   profilePic: {
     type: String,
-    default:
-      'https://as1.ftcdn.net/jpg/02/59/39/46/500_F_259394679_GGA8JJAEkukYJL9XXFH2JoC3nMguBPNH.jpg',
+    default: 'https://image.flaticon.com/icons/svg/892/892704.svg',
   },
   date: {
     type: Date,

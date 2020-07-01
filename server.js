@@ -18,25 +18,28 @@ const PORT = process.env.PORT || 5000;
 // Run socket when user is connected
 io.on('connection', (socket) => {
   console.log('a socket connected');
-  socket.on('joinChat', (chatId) => {
+  socket.on('joinChat', (chatId, cb) => {
     socket.join(chatId);
     //welcome user
-    socket.emit('message', `Welcome ${chatId}`);
+    cb({ msg: `welcome ${chatId}` });
+  });
+
+  //Listen for text messages
+  socket.on('textMessage', (message) => {
+    //send listened msg to client
+    io.to(message.chatId).emit('message', message);
+    // console.log(message);
 
     //Broadcasting a user joined like lastseen online
-    socket.broadcast.to(chatId).emit('message', `${chatId} has joined`);
+    // socket.broadcast.to(chatId).emit('message', `${chatId} has joined`);
 
-    //Listen for text messages
-    socket.on('textMessage', (message) => {
-      if (message) {
-        //send listened msg to client
-        io.to(message.chatId).emit('chatMessage', message);
-      }
-      //while user left the chat
-      socket.on('disconnect', () => {
-        //disconnect socket
-        io.emit('message', `${user.firstName} disconnected from chat`);
-      });
+    //while user left the chat
+    socket.on('disconnect', () => {
+      //disconnect socket
+      io.to(message.chatId).emit(
+        'message',
+        `${message.user.firstName} disconnected from chat`
+      );
     });
   });
 });
