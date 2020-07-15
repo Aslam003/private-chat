@@ -5,6 +5,7 @@ module.exports = function (req, res, next) {
   //Get token
   // console.log(the req', req);
   const token = req.headers.authorization;
+
   //Token checking
   if (!token) {
     return res

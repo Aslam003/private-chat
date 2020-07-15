@@ -1,58 +1,282 @@
-const express = require('express');
+const express = require("express");
+const config = require("config");
+const jwt = require("jsonwebtoken");
+const User = require("../modals/User");
+const session = require("express-session");
+const passport = require("passport");
+const GoogleStrategy = require("passport-google-oauth2").Strategy;
+const FacebookStrategy = require("passport-facebook").Strategy;
+const TwitterStrategy = require("passport-twitter").Strategy;
+const GitHubStrategy = require("passport-github2").Strategy;
 const router = express.Router();
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
-const auth = require('../middleware/auth');
-const config = require('config');
-const User = require('../modals/User');
+router.use(express.json());
+router.use(
+  session({
+    secret: config.get("sessionSecret"),
+    resave: false,
+    saveUninitialized: false,
+  })
+);
+router.use(passport.initialize());
+router.use(passport.session());
 
-// @route Get api/auth
-// @desc Log a user
-//access Private
-
-router.get('/', auth, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select('-password');
-    res.json(user);
-  } catch (error) {
-    console.log(err.message);
-    res.status(500).json({ errMsg: 'server error' });
-  }
+passport.serializeUser(function (user, done) {
+  done(null, user.id);
 });
 
-// @route POST api/auth
-// @desc authenticate user and create token
-// @access Public
-
-router.post('/', async (req, res) => {
-  const { username, password } = req.body;
-  try {
-    let user = await User.findOne({ username });
-    if (!user) {
-      return res.status(400).json({ errMsg: 'Invalid username' });
-    }
-    const isPassword = await bcrypt.compare(password, user.password);
-    if (!isPassword) {
-      return res.status(400).json({ errMsg: 'Invalid password' });
-    }
-    const payload = {
-      user: {
-        id: user.id,
-      },
-    };
-    jwt.sign(
-      payload,
-      config.get('jwtSecret'),
-      { expiresIn: 360000 },
-      (err, token) => {
-        if (err) throw err;
-        res.json({ token });
-      }
-    );
-  } catch (error) {
-    console.log(error.message);
-    res.status(500).json({ errMsg: 'server error' });
-  }
+passport.deserializeUser(function (id, done) {
+  User.findById(id, function (err, user) {
+    done(err, user);
+  });
 });
 
+//name captialize
+const capitalName = (name) => {
+  if (name) {
+    let Name = name.split(" ");
+    let newName = "";
+    Name.forEach((sname) => {
+      newName += sname[0].toUpperCase() + sname.slice(1) + " ";
+    });
+    return newName;
+  }
+};
+
+//Google Strategy
+passport.use(
+  new GoogleStrategy(
+    {
+      clientID: config.get("googleClientId"),
+      clientSecret: config.get("googleClientSecret"),
+      callbackURL: "http://localhost:5000/auth/google/private-chat",
+      userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo",
+    },
+    function (accessToken, refreshToken, profile, done) {
+      const { id, displayName, picture } = profile;
+
+      User.findOrCreate(
+        {
+          googleId: id,
+          name: capitalName(displayName),
+          profilePic: picture,
+        },
+        function (err, user) {
+          return done(err, user);
+        }
+      );
+    }
+  )
+);
+
+//Facebook Strategy
+passport.use(
+  new FacebookStrategy(
+    {
+      clientID: config.get("facebookClientId"),
+      clientSecret: config.get("facebookClientSecret"),
+      callbackURL: "http://localhost:5000/auth/facebook/private-chat",
+      profileFields: ["id", "displayName", "photos", "email"],
+    },
+    function (accessToken, refreshToken, profileFields, cb) {
+      const { id, displayName, photos } = profileFields;
+
+      User.findOrCreate(
+        {
+          facebookId: id,
+          name: capitalName(displayName),
+          profilePic: photos[0].value,
+        },
+        function (err, user) {
+          return cb(err, user);
+        }
+      );
+    }
+  )
+);
+//Twitter Strategy
+passport.use(
+  new TwitterStrategy(
+    {
+      consumerKey: config.get("twitterApiKey"),
+      consumerSecret: config.get("twitterApiSecret"),
+      callbackURL: "http://localhost:5000/auth/twitter/private-chat",
+    },
+    function (token, tokenSecret, profile, cb) {
+      const { id, displayName, photos } = profile;
+
+      User.findOrCreate(
+        {
+          twitterId: id,
+          name: capitalName(displayName),
+          profilePic: photos[0].value,
+        },
+        function (err, user) {
+          return cb(err, user);
+        }
+      );
+    }
+  )
+);
+
+//Github Strategy
+passport.use(
+  new GitHubStrategy(
+    {
+      clientID: config.get("githubClientId"),
+      clientSecret: config.get("githubClientSecret"),
+      callbackURL: "http://localhost:5000/auth/github/private-chat",
+    },
+    function (accessToken, refreshToken, profile, done) {
+      const { id, displayName, photos } = profile;
+
+      User.findOrCreate(
+        {
+          githubId: id,
+          name: capitalName(displayName),
+          profilePic: photos[0].value,
+        },
+        function (err, user) {
+          return done(err, user);
+        }
+      );
+    }
+  )
+);
+
+// @Route /api/auth/google
+// @desc google oauth authentication
+// access public
+router.get("/google", passport.authenticate("google", { scope: ["profile"] }));
+router.get(
+  "/google/private-chat",
+  passport.authenticate("google", {
+    failureRedirect: "http://localhost:3000/login",
+  }),
+  async (req, res) => {
+    try {
+      console.log(req.user);
+      const payload = {
+        user: {
+          id: req.user._id,
+        },
+      };
+      jwt.sign(
+        payload,
+        config.get("jwtSecret"),
+        { expiresIn: 360000 },
+        (err, token) => {
+          if (err) throw err;
+          res.redirect(`http://localhost:3000/?token= ${token}`);
+        }
+      );
+    } catch (error) {
+      console.log(error.message);
+      res.status(500).json({ errMsg: "server error" });
+    }
+  }
+);
+
+// @Route /api/auth/facebook
+// @desc facebook oauth authentication
+// access public
+router.get("/facebook", passport.authenticate("facebook"));
+
+router.get(
+  "/facebook/private-chat",
+  passport.authenticate("facebook", {
+    failureRedirect: "http://localhost:3000/login",
+  }),
+  async (req, res) => {
+    try {
+      console.log(req.user);
+      const payload = {
+        user: {
+          id: req.user._id,
+        },
+      };
+      jwt.sign(
+        payload,
+        config.get("jwtSecret"),
+        { expiresIn: 360000 },
+        (err, token) => {
+          if (err) throw err;
+          console.log(req.user);
+
+          res.redirect(`http://localhost:3000/?token= ${token}`);
+        }
+      );
+    } catch (error) {
+      console.log(error.message);
+      res.status(500).json({ errMsg: "server error" });
+    }
+  }
+);
+
+// @Route /api/auth/twitter
+// @desc twitter oauth authentication
+// access public
+router.get("/twitter", passport.authenticate("twitter"));
+
+router.get(
+  "/twitter/private-chat",
+  passport.authenticate("twitter", { failureRedirect: "/login" }),
+  async (req, res) => {
+    try {
+      console.log(req.user);
+      const payload = {
+        user: {
+          id: req.user._id,
+        },
+      };
+      jwt.sign(
+        payload,
+        config.get("jwtSecret"),
+        { expiresIn: 360000 },
+        (err, token) => {
+          if (err) throw err;
+          console.log(req.user);
+
+          res.redirect(`http://localhost:3000/?token= ${token}`);
+        }
+      );
+    } catch (error) {
+      console.log(error.message);
+      res.status(500).json({ errMsg: "server error" });
+    }
+  }
+);
+
+// @Route /api/auth/github
+// @desc github oauth authentication
+// access public
+router.get("/github", passport.authenticate("github"));
+
+router.get(
+  "/github/private-chat",
+  passport.authenticate("github", { failureRedirect: "/login" }),
+  async (req, res) => {
+    try {
+      console.log(req.user);
+      const payload = {
+        user: {
+          id: req.user._id,
+        },
+      };
+      jwt.sign(
+        payload,
+        config.get("jwtSecret"),
+        { expiresIn: 360000 },
+        (err, token) => {
+          if (err) throw err;
+          console.log(req.user);
+
+          res.redirect(`http://localhost:3000/?token= ${token}`);
+        }
+      );
+    } catch (error) {
+      console.log(error.message);
+      res.status(500).json({ errMsg: "server error" });
+    }
+  }
+);
 module.exports = router;
