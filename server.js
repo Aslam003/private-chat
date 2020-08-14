@@ -1,14 +1,15 @@
 const express = require("express");
-const connectDB = require("./config/db");
+const { connectDB } = require("./routes/upload");
 const http = require("http");
 const socketio = require("socket.io");
 const cors = require("cors");
 const app = express();
 const server = http.createServer(app);
 const io = socketio(server);
-
+const { router } = require("./routes/upload");
 //Body parsing middleware
 app.use(express.json());
+// app.use(upload.array());
 app.use(express.urlencoded({ extended: false }));
 app.use(cors());
 //Database connect
@@ -48,9 +49,15 @@ io.on("connection", (socket) => {
 app.use("/api/register", require("./routes/register"));
 app.use("/auth", require("./routes/auth"));
 app.use("/api/login", require("./routes/login"));
-
 app.use("/api/chat", require("./routes/chat"));
 app.use("/api/messages", require("./routes/messages"));
+app.use("/api/profilepic", require("./routes/profilepic"));
+app.use("/api/profilename", require("./routes/profilename"));
+
+app.use("/upload", router);
+
+//Subscribe route
+app.use("/subscribe", require("./routes/subscribe"));
 //Home route
 app.get("/", (req, res) => {
   res.send("home");

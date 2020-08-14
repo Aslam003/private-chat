@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const findOrCreate = require('mongoose-findorcreate');
+const mongoose = require("mongoose");
+const findOrCreate = require("mongoose-findorcreate");
 const userSchema = mongoose.Schema({
   name: {
     type: String,
@@ -27,7 +27,7 @@ const userSchema = mongoose.Schema({
   },
   profilePic: {
     type: String,
-    default: 'https://image.flaticon.com/icons/svg/892/892704.svg',
+    default: "https://image.flaticon.com/icons/svg/892/892704.svg",
   },
   date: {
     type: Date,
@@ -35,4 +35,4 @@ const userSchema = mongoose.Schema({
   },
 });
 userSchema.plugin(findOrCreate);
-module.exports = mongoose.model('user', userSchema);
+module.exports = mongoose.model("user", userSchema);

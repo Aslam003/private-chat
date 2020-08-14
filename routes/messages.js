@@ -33,7 +33,7 @@ router.post("/add", async (req, res) => {
           $push: {
             messages: {
               user,
-              name: name,
+              name,
               message,
               date,
             },
@@ -69,7 +69,6 @@ router.delete("/delete", async (req, res) => {
 
 router.delete("/clear", async (req, res) => {
   const { chatId } = req.body;
-  console.log(req.body);
   try {
     let deleteChatId = await Message.updateOne(
       { chatId },

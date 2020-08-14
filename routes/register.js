@@ -10,6 +10,7 @@ const User = require("../modals/User");
 //@access Public
 
 router.post("/", async (req, res) => {
+  console.log(req.body);
   const { firstName, lastName, username, email, password } = req.body;
   let newFirstName = firstName[0].toUpperCase() + firstName.slice(1);
   let newLastName = lastName[0].toUpperCase() + lastName.slice(1);
@@ -33,7 +34,7 @@ router.post("/", async (req, res) => {
         id: user.id,
       },
     };
-
+    console.log(payload);
     jwt.sign(
       payload,
       config.get("jwtSecret"),
@@ -43,6 +44,7 @@ router.post("/", async (req, res) => {
       (err, token) => {
         if (err) throw err;
         res.json({ token });
+        console.log(token);
       }
     );
   } catch (error) {

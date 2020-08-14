@@ -21,7 +21,7 @@ router.use(passport.initialize());
 router.use(passport.session());
 
 passport.serializeUser(function (user, done) {
-  done(null, user.id);
+  done(null, user);
 });
 
 passport.deserializeUser(function (id, done) {
@@ -53,17 +53,21 @@ passport.use(
     },
     function (accessToken, refreshToken, profile, done) {
       const { id, displayName, picture } = profile;
-
-      User.findOrCreate(
-        {
-          googleId: id,
-          name: capitalName(displayName),
-          profilePic: picture,
-        },
-        function (err, user) {
+      User.findOne({ googleId: id }, (err, user) => {
+        if (user) {
+          console.log("old user");
           return done(err, user);
+        } else if (!user) {
+          console.log("newUser");
+          const newUser = User({
+            googleId: id,
+            name: capitalName(displayName),
+            profilePic: picture,
+          });
+          newUser.save();
+          return done(err, newUser);
         }
-      );
+      });
     }
   )
 );
@@ -77,19 +81,24 @@ passport.use(
       callbackURL: "http://localhost:5000/auth/facebook/private-chat",
       profileFields: ["id", "displayName", "photos", "email"],
     },
-    function (accessToken, refreshToken, profileFields, cb) {
+    function (accessToken, refreshToken, profileFields, done) {
       const { id, displayName, photos } = profileFields;
+      User.findOne({ facebookId: id }, (err, user) => {
+        if (user) {
+          console.log("user");
+          return done(err, user);
+        } else if (!user) {
+          console.log("new user");
 
-      User.findOrCreate(
-        {
-          facebookId: id,
-          name: capitalName(displayName),
-          profilePic: photos[0].value,
-        },
-        function (err, user) {
-          return cb(err, user);
+          const newUser = User({
+            facebookId: id,
+            name: capitalName(displayName),
+            profilePic: photos[0].value,
+          });
+          newUser.save();
+          return done(err, newUser);
         }
-      );
+      });
     }
   )
 );
@@ -101,19 +110,22 @@ passport.use(
       consumerSecret: config.get("twitterApiSecret"),
       callbackURL: "http://localhost:5000/auth/twitter/private-chat",
     },
-    function (token, tokenSecret, profile, cb) {
+    function (token, tokenSecret, profile, done) {
       const { id, displayName, photos } = profile;
-
-      User.findOrCreate(
-        {
-          twitterId: id,
-          name: capitalName(displayName),
-          profilePic: photos[0].value,
-        },
-        function (err, user) {
-          return cb(err, user);
+      User.findOne({ twitterId: id }, (err, user) => {
+        if (user) {
+          console.log(user);
+          return done(err, user);
+        } else if (!user) {
+          const newUser = User({
+            twitterId: id,
+            name: capitalName(displayName),
+            profilePic: photos[0].value,
+          });
+          newUser.save();
+          return done(err, newUser);
         }
-      );
+      });
     }
   )
 );
@@ -128,17 +140,20 @@ passport.use(
     },
     function (accessToken, refreshToken, profile, done) {
       const { id, displayName, photos } = profile;
-
-      User.findOrCreate(
-        {
-          githubId: id,
-          name: capitalName(displayName),
-          profilePic: photos[0].value,
-        },
-        function (err, user) {
+      User.findOne({ githubId: id }, (err, user) => {
+        if (user) {
+          console.log(user);
           return done(err, user);
+        } else if (!user) {
+          const newUser = User({
+            githubId: id,
+            name: capitalName(displayName),
+            profilePic: photos[0].value,
+          });
+          newUser.save();
+          return done(err, newUser);
         }
-      );
+      });
     }
   )
 );
@@ -154,7 +169,6 @@ router.get(
   }),
   async (req, res) => {
     try {
-      console.log(req.user);
       const payload = {
         user: {
           id: req.user._id,
@@ -188,7 +202,6 @@ router.get(
   }),
   async (req, res) => {
     try {
-      console.log(req.user);
       const payload = {
         user: {
           id: req.user._id,
@@ -200,8 +213,6 @@ router.get(
         { expiresIn: 360000 },
         (err, token) => {
           if (err) throw err;
-          console.log(req.user);
-
           res.redirect(`http://localhost:3000/?token= ${token}`);
         }
       );
@@ -222,7 +233,6 @@ router.get(
   passport.authenticate("twitter", { failureRedirect: "/login" }),
   async (req, res) => {
     try {
-      console.log(req.user);
       const payload = {
         user: {
           id: req.user._id,
@@ -234,8 +244,6 @@ router.get(
         { expiresIn: 360000 },
         (err, token) => {
           if (err) throw err;
-          console.log(req.user);
-
           res.redirect(`http://localhost:3000/?token= ${token}`);
         }
       );
@@ -256,7 +264,6 @@ router.get(
   passport.authenticate("github", { failureRedirect: "/login" }),
   async (req, res) => {
     try {
-      console.log(req.user);
       const payload = {
         user: {
           id: req.user._id,
@@ -268,8 +275,6 @@ router.get(
         { expiresIn: 360000 },
         (err, token) => {
           if (err) throw err;
-          console.log(req.user);
-
           res.redirect(`http://localhost:3000/?token= ${token}`);
         }
       );

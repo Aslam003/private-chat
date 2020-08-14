@@ -1,9 +1,9 @@
 const express = require("express");
 const router = express.Router();
-const bcrypt = require("bcryptjs");
 const ChatId = require("../modals/ChatIds");
 const Message = require("../modals/Message");
-const { updateOne } = require("../modals/Message");
+// const { updateOne } = require("../modals/Message");
+
 // @route Post api/chat
 //@desc get chat Ids
 //access public
@@ -25,6 +25,7 @@ router.post("/", async (req, res) => {
 //access private
 
 router.post("/create", async (req, res) => {
+  console.log(req.body);
   const { chatId, password, user } = req.body;
   try {
     let newChatId = await ChatId.findOne({ chatId });
