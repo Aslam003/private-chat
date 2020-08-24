@@ -7,6 +7,10 @@ const capitalName = (name) => {
   if (name) {
     let Name = name.split(" ");
     let newName = "";
+
+    // newName += Name[0][0].toUpperCase() + Name[0].slice(1) + " ";
+    // newName += Name[1][0].toUpperCase() + Name[1].slice(1);
+
     Name.forEach((sname) => {
       newName += sname[0].toUpperCase() + sname.slice(1) + " ";
     });
@@ -18,30 +22,46 @@ const capitalName = (name) => {
 //@desc change profile name
 //access public
 
-router.post("/", (req, res) => {
+router.post("/", async (req, res) => {
   const { id, name } = req.body;
-  const newName = capitalName(name);
-  console.log(newName);
-  User.updateOne({ _id: id }, { $set: { name: newName } }, (err, updated) => {
-    if (updated) {
-      console.log(updated);
-    }
-  });
 
-  ChatId.update(
-    { "users.userId": id },
-    { $set: { "users.$[elem].name": name } },
-    { arrayFilters: [{ "elem.userId": id }], multi: true },
-    (err, updated) => {
+  if (!name) {
+    return res.send({
+      success: false,
+      errorMessage: "Please enter name",
+    });
+  }
+
+  if (name.length > 20) {
+    return res.send({
+      success: false,
+      errorMessage: "Name should contain maximum of 20 characters",
+    });
+  }
+  const newName = capitalName(name);
+
+  try {
+    let userUpdate = await User.updateOne(
+      { _id: id },
+      { $set: { name: newName } }
+    );
+    if (userUpdate) {
+      let updated = await ChatId.updateOne(
+        { "users.userId": id },
+        { $set: { "users.$[elem].name": name } },
+        { arrayFilters: [{ "elem.userId": id }], multi: true }
+      );
       if (updated) {
-        console.log("update");
         console.log(updated);
-      }
-      if (err) {
-        console.log(err);
+        let found = await User.findOne({ _id: id }).select("-password");
+        if (found) {
+          console.log(found);
+          res.json(found);
+        }
       }
     }
-  );
-  res.json(req.body);
+  } catch (error) {
+    console.log(error);
+  }
 });
 module.exports = router;

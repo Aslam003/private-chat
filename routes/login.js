@@ -6,7 +6,7 @@ const auth = require("../middleware/auth");
 const config = require("config");
 const User = require("../modals/User");
 
-// @route Get api/auth
+// @route Get api/login
 // @desc Log a user
 //access Private
 
@@ -26,14 +26,34 @@ router.get("/", auth, async (req, res) => {
 
 router.post("/", async (req, res) => {
   const { username, password } = req.body;
+
   try {
-    let user = await User.findOne({ username });
-    if (!user) {
-      return res.status(400).json({ errMsg: "Invalid username" });
+    if (!username) {
+      return res.send({
+        success: false,
+        errorMessage: "Please enter username",
+      });
     }
+
+    if (!password) {
+      return res.send({
+        success: false,
+        errorMessage: "Please enter password",
+      });
+    }
+    let user = await User.findOne({ username });
+
+    if (!user) {
+      return res
+        .status(400)
+        .json({ success: false, errorMessage: "Username does not exists!" });
+    }
+
     const isPassword = await bcrypt.compare(password, user.password);
     if (!isPassword) {
-      return res.status(400).json({ errMsg: "Invalid password" });
+      return res
+        .status(400)
+        .json({ success: false, errorMessage: "Incorrect password!" });
     }
     const payload = {
       user: {

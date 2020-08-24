@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const ChatId = require("../modals/ChatIds");
 const Message = require("../modals/Message");
+const moment = require("moment");
 // const { updateOne } = require("../modals/Message");
 
 // @route Post api/chat
@@ -28,24 +29,48 @@ router.post("/create", async (req, res) => {
   console.log(req.body);
   const { chatId, password, user } = req.body;
   try {
-    let newChatId = await ChatId.findOne({ chatId });
-    if (newChatId) return res.status(403).json("Chat id already exists");
+    if (!chatId) {
+      return res.send({
+        success: false,
+        errorMessage: "Please enter ChatId",
+      });
+    }
+    if (!password) {
+      return res.send({
+        success: false,
+        errorMessage: "Please enter password",
+      });
+    }
+    let chatIdFound = await ChatId.findOne({ chatId });
+    if (chatIdFound) {
+      return res.send({
+        success: false,
+        errorMessage: "Chat id already exists please try another.",
+      });
+    } else {
+      let newChatId = ChatId({
+        user: user._id,
+        chatId,
+        password,
+        users: { name: user.name, userId: user._id },
+      });
 
-    newChatId = ChatId({
-      user: user._id,
-      chatId,
-      password,
-      users: { name: user.name, userId: user._id },
-    });
+      let newChatMessage = Message({
+        chatId,
+        messages: [
+          // {
+          //   user: user._id,
+          //   name: user.name,
+          //   message: `${user.name} created this chat!`,
+          //   date: moment().format(),
+          // },
+        ],
+      });
 
-    let newChatMessage = Message({
-      chatId,
-      messages: [],
-    });
-
-    await newChatId.save();
-    await newChatMessage.save();
-    res.json(newChatId);
+      await newChatId.save();
+      await newChatMessage.save();
+      res.json({ success: true, chat: newChatId });
+    }
   } catch (error) {
     console.log(error);
   }
@@ -54,27 +79,49 @@ router.post("/create", async (req, res) => {
 // @route POST api/chat/enter
 // @desc Enter a new user to the chat
 // access private
+
 router.post("/enter", async (req, res) => {
   const { chatId, password, user } = req.body;
   try {
-    let userChatId = await ChatId.findOne({ chatId });
-    if (!userChatId)
-      return res.status(400).json({ errMsg: "please enter correct chatid" });
-    if (!password) {
-      return res.status(400).json({ errMsg: "Invalid chatId password" });
+    if (!chatId) {
+      return res.send({
+        success: false,
+        errorMessage: "Please enter ChatId",
+      });
     }
-    await ChatId.updateOne(
-      { chatId },
-      {
-        $push: {
-          users: {
-            name: user.name,
-            userId: user._id,
+    if (!password) {
+      return res.send({
+        success: false,
+        errorMessage: "Please enter password",
+      });
+    }
+    let userChatId = await ChatId.findOne({ chatId });
+    if (!userChatId) {
+      return res.send({
+        success: false,
+        errorMessage: "Please enter correct chatid",
+      });
+    }
+
+    if (userChatId.password !== password) {
+      return res.send({
+        success: false,
+        errorMessage: "Please enter correct password",
+      });
+    } else {
+      await ChatId.updateOne(
+        { chatId },
+        {
+          $push: {
+            users: {
+              name: user.name,
+              userId: user._id,
+            },
           },
-        },
-      }
-    );
-    return res.json(userChatId);
+        }
+      );
+      return res.json(userChatId);
+    }
   } catch (error) {
     console.log(error);
   }

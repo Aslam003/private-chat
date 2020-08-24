@@ -13,6 +13,7 @@ const connectDB = () => {
   mongoose.connect(mongoURI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
+    useCreateIndex: true,
   });
 };
 let gfs;
@@ -30,15 +31,17 @@ const storage = new GridFsStorage({
   url: config.get("mongoURI"),
   file: (req, file) => {
     const user = JSON.parse(req.body.user);
-    console.log(user);
     return new Promise((resolve, reject) => {
       crypto.randomBytes(16, (err, buf) => {
         if (err) {
-          return reject(err);
+          return res.json({
+            success: false,
+            errorMessage: "Image should be less than 2MB",
+          });
         }
         const filename = buf.toString("hex") + path.extname(file.originalname);
         const fileInfo = {
-          id: mongoose.Types.ObjectId(user.id),
+          // id: mongoose.Types.ObjectId(user.id),
           filename,
           bucketName: "uploads",
         };
@@ -47,7 +50,7 @@ const storage = new GridFsStorage({
     });
   },
 });
-const upload = multer({ storage, limits: { fileSize: 1000 * 1024 } });
+const upload = multer({ storage, limits: { fileSize: 2000 * 1024 } });
 
 // @route Post upload
 // @desc Put a Image
@@ -55,19 +58,6 @@ const upload = multer({ storage, limits: { fileSize: 1000 * 1024 } });
 
 router.post("/", upload.single("file"), async (req, res) => {
   res.json(req.file);
-});
-
-// @route Get upload
-// @desc Get a Image
-//access Public
-router.get("/files", (req, res) => {
-  gfs.files.find().toArray((err, files) => {
-    //check if files are there
-    if (!files || files.length === 0) {
-      return res.status(400).json({ errMsg: "no files are here" });
-    }
-    return res.json(files);
-  });
 });
 
 // @route GET /image/:filename
@@ -82,9 +72,7 @@ router.get("/file/:filename", (req, res) => {
       const readstream = gfs.createReadStream(file.filename);
       readstream.pipe(res);
     } else {
-      res.status(404).json({
-        err: "Not an image",
-      });
+      res.status(404).json({ success: false, errorMessage: "Not an image" });
     }
   });
 });
@@ -97,10 +85,9 @@ router.delete("/delete/:id", (req, res) => {
   gfs.remove({ _id: req.params.id, root: "uploads" }, (error, gridStore) => {
     if (error) {
       console.log(error);
-    }
-    if (gridStore) {
-      console.log("removing");
-      // res.json("removing");
+      return res
+        .status(404)
+        .json({ success: false, errorMessage: "eroor upload" });
     }
   });
 
@@ -109,25 +96,16 @@ router.delete("/delete/:id", (req, res) => {
     (err, data) => {
       if (err) {
         console.log(err);
-        return res.status(404).json({ err: "eroor upload" });
+        return res
+          .status(404)
+          .json({ success: false, errorMessage: "eroor upload" });
       }
       if (data) {
         console.log("deleted");
       }
-      res.json("deleted");
+      res.json({ success: true, errorMessage: "image deleted" });
     }
   );
 });
-
-// router.delete("/delete/:id", (req, res) => {
-//   gfs.remove({ _id: req.params.id, root: "uploads" }, (err, gridStore) => {
-//     if (err) {
-//       return res.status(404).json({ err: err });
-//     }
-//     console.log("deleted");
-
-//     res.json("deleted");
-//   });
-// });
 
 module.exports = { router, connectDB };
